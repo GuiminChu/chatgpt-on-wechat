@@ -184,8 +184,11 @@ class AzureChatGPTBot(ChatGPTBot):
                 "quality": "standard",  # Options are “hd” and “standard”; defaults to standard
                 "style": "vivid"  # Options are “natural” and “vivid”; defaults to “vivid”
             }
-
+            logger.info("azure openai image base url: {}".format(body))
+            
             submission = requests.post(url, headers=headers, json=body)
+            logger.info("azure openai image base url: {}".format(submission.json()))
+            
             image_url = submission.json()['data'][0]['url']
             return True, image_url
         except Exception as e:
