@@ -184,13 +184,28 @@ class AzureChatGPTBot(ChatGPTBot):
                 "quality": "standard",  # Options are “hd” and “standard”; defaults to standard
                 "style": "vivid"  # Options are “natural” and “vivid”; defaults to “vivid”
             }
-            logger.info("azure openai image base url: {}".format(body))
-            
+            logger.info("azure openai image request body: {}".format(body))
             submission = requests.post(url, headers=headers, json=body)
-            logger.info("azure openai image base url: {}".format(submission.json()))
-            
-            image_url = submission.json()['data'][0]['url']
-            return True, image_url
+            response_json = submission.json()
+
+            logger.info("azure openai image response json: {}".format(response_json))
+
+            if 'data' in response_json and response_json['data']:
+                # 正常返回，提取 URL
+                image_url = response_json['data'][0]['url']
+                return True, image_url
+            elif 'error' in response_json:
+                # 错误返回，提取错误代码
+                error_code = response_json['error'].get('code')
+                if error_code == "contentFilter":
+                    # 任务失败，可能是因为内容不符合规范
+                    return False, "提示语内容不符合安全审查，请重新组织提示语"
+
+                return False, "图片生成失败"
+            else:
+                # 未知返回类型
+                return False, "图片生成失败"
+
         except Exception as e:
             logger.error("create image error: {}".format(e))
             return False, "图片生成失败"
