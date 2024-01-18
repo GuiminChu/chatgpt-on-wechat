@@ -200,6 +200,9 @@ class AzureChatGPTBot(ChatGPTBot):
                 if error_code == "contentFilter":
                     # 任务失败，可能是因为内容不符合规范
                     return False, "提示语内容不符合安全审查，请重新组织提示语"
+                elif error_code == "tooManyRequests":
+                    # 任务失败，可能是因为系统繁忙
+                    return False, "系统繁忙，请稍后再试"
 
                 return False, "图片生成失败"
             else:
