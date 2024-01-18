@@ -25,5 +25,5 @@ jobs:
     
     - name: Build the Docker image
       run: |
-        docker build --file ./docker/Dockerfile.latest --tag registry.cn-shanghai.aliyuncs.com/qn-open/chatgpt-on-wechat:20240116 . 
-        docker push registry.cn-shanghai.aliyuncs.com/qn-open/chatgpt-on-wechat:20240116
+        docker build --file ./docker/Dockerfile.latest --tag registry.cn-shanghai.aliyuncs.com/qn-open/chatgpt-on-wechat:latest . 
+        docker push registry.cn-shanghai.aliyuncs.com/qn-open/chatgpt-on-wechat:latest
