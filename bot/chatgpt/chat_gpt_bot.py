@@ -15,6 +15,7 @@ from bridge.reply import Reply, ReplyType
 from common.log import logger
 from common.token_bucket import TokenBucket
 from config import conf, load_config
+from datetime import datetime
 
 
 # OpenAI对话模型API (可用)
@@ -44,9 +45,12 @@ class ChatGPTBot(Bot, OpenAIImage):
         }
 
     def reply(self, query, context=None):
+        create_time = datetime.now()
+
         # acquire reply content
         if context.type == ContextType.TEXT:
-            logger.info("[CHATGPT] query={}".format(query))
+            receiver_name = context.kwargs.get("receiver_name", "")
+            logger.info("[CHATGPT] query={} by={}".format(query, receiver_name))
 
             session_id = context["session_id"]
             reply = None
@@ -84,21 +88,27 @@ class ChatGPTBot(Bot, OpenAIImage):
                     reply_content["completion_tokens"],
                 )
             )
+
             if reply_content["completion_tokens"] == 0 and len(reply_content["content"]) > 0:
                 reply = Reply(ReplyType.ERROR, reply_content["content"])
             elif reply_content["completion_tokens"] > 0:
                 self.sessions.session_reply(reply_content["content"], session_id, reply_content["total_tokens"])
-                reply = Reply(ReplyType.TEXT, reply_content["content"])
+                reply_content["create_time"] = create_time.strftime("%Y-%m-%d %H:%M:%S")
+                reply_content["complete_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                reply = Reply(ReplyType.TEXT, reply_content["content"], kwargs=reply_content)
             else:
                 reply = Reply(ReplyType.ERROR, reply_content["content"])
                 logger.debug("[CHATGPT] reply {} used 0 tokens.".format(reply_content))
+
             return reply
 
         elif context.type == ContextType.IMAGE_CREATE:
             ok, retstring = self.create_img(query, 0)
             reply = None
             if ok:
-                reply = Reply(ReplyType.IMAGE_URL, retstring)
+                reply_content = {"create_time": create_time.strftime("%Y-%m-%d %H:%M:%S"),
+                                 "complete_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                reply = Reply(ReplyType.IMAGE_URL, retstring, reply_content)
             else:
                 reply = Reply(ReplyType.ERROR, retstring)
             return reply
@@ -124,7 +134,9 @@ class ChatGPTBot(Bot, OpenAIImage):
             # logger.debug("[CHATGPT] response={}".format(response))
             # logger.info("[ChatGPT] reply={}, total_tokens={}".format(response.choices[0]['message']['content'], response["usage"]["total_tokens"]))
             return {
+                "model_type": response.engine,
                 "total_tokens": response["usage"]["total_tokens"],
+                "prompt_tokens": response["usage"]["prompt_tokens"],
                 "completion_tokens": response["usage"]["completion_tokens"],
                 "content": response.choices[0]["message"]["content"],
             }

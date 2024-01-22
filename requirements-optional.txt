@@ -36,3 +36,6 @@ broadscope_bailian
 
 # google
 google-generativeai
+
+# extras
+blinker==1.7.0

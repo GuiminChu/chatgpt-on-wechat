@@ -23,6 +23,7 @@ from common.time_check import time_checker
 from config import conf, get_appdata_dir
 from lib import itchat
 from lib.itchat.content import *
+from extras.signals import custom_callback_signal
 
 
 @itchat.msg_register([TEXT, VOICE, PICTURE, NOTE, ATTACHMENT, SHARING])
@@ -186,9 +187,12 @@ class WechatChannel(ChatChannel):
     # 统一的发送函数，每个Channel自行实现，根据reply的type字段发送不同类型的消息
     def send(self, reply: Reply, context: Context):
         receiver = context["receiver"]
+        receiver_name = context["receiver_name"]
         if reply.type == ReplyType.TEXT:
             itchat.send(reply.content, toUserName=receiver)
-            logger.info("[WX] sendMsg={}, receiver={}".format(reply, receiver))
+            custom_callback_signal.send("wx_reply_callback", reply=reply, context=context)
+            logger.info(f'[WX] sendMsg={reply}, receiver={receiver}, receiver_name={receiver_name}')
+
         elif reply.type == ReplyType.ERROR or reply.type == ReplyType.INFO:
             itchat.send(reply.content, toUserName=receiver)
             logger.info("[WX] sendMsg={}, receiver={}".format(reply, receiver))
@@ -207,7 +211,10 @@ class WechatChannel(ChatChannel):
             logger.info(f"[WX] download image success, size={size}, img_url={img_url}")
             image_storage.seek(0)
             itchat.send_image(image_storage, toUserName=receiver)
-            logger.info("[WX] sendImage url={}, receiver={}".format(img_url, receiver))
+
+            custom_callback_signal.send("wx_reply_callback", reply=reply, context=context)
+            logger.info(f'[WX] sendImage url={img_url}, receiver={receiver}, receiver_name={receiver_name}')
+
         elif reply.type == ReplyType.IMAGE:  # 从文件读取图片
             image_storage = reply.content
             image_storage.seek(0)

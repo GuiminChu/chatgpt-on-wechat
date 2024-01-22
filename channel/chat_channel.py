@@ -76,6 +76,7 @@ class ChatChannel(Channel):
                     return None
                 context["session_id"] = session_id
                 context["receiver"] = group_id
+                context["receiver_name"] = group_name
             else:
                 context["session_id"] = cmsg.other_user_id
                 context["receiver"] = cmsg.other_user_id
