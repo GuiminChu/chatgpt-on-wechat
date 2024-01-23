@@ -80,6 +80,7 @@ class ChatChannel(Channel):
             else:
                 context["session_id"] = cmsg.other_user_id
                 context["receiver"] = cmsg.other_user_id
+                context["receiver_name"] = cmsg.other_user_nickname
             e_context = PluginManager().emit_event(EventContext(Event.ON_RECEIVE_MESSAGE, {"channel": self, "context": context}))
             context = e_context["context"]
             if e_context.is_pass() or context is None:
