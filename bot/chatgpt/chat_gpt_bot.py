@@ -16,6 +16,7 @@ from common.log import logger
 from common.token_bucket import TokenBucket
 from config import conf, load_config
 from datetime import datetime
+from common.chat_prompt import art_toy
 
 
 # OpenAI对话模型API (可用)
@@ -187,13 +188,20 @@ class AzureChatGPTBot(ChatGPTBot):
         logger.info("azure openai image base url: {}".format(url))
         api_key = api_key or openai.api_key
         headers = {"api-key": api_key, "Content-Type": "application/json"}
+
+        quality = "standard"  # Options are “hd” and “standard”; defaults to standard
+
+        if query.startswith("盲盒设计师"):
+            quality = "hd"
+            query = art_toy + query.replace("盲盒设计师", "", 1)
+
         try:
             body = {
                 # Enter your prompt text here
                 "prompt": query,
                 "size": "1024x1024",  # supported values are “1024x1024”
                 "n": 1,
-                "quality": "standard",  # Options are “hd” and “standard”; defaults to standard
+                "quality": quality,  # Options are “hd” and “standard”; defaults to standard
                 "style": "vivid"  # Options are “natural” and “vivid”; defaults to “vivid”
             }
             logger.info("azure openai image request body: {}".format(body))

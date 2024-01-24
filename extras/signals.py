@@ -45,6 +45,11 @@ def handle_custom_signal(sender, **kwargs):
                 body["messageContent"] = reply.content
                 body["modelType"] = "Dalle3"
 
+            # 私聊时，需要将发送者id和昵称传递过去
+            if not chat_message.is_group:
+                body["queryUserId"] = chat_message.from_user_id
+                body["queryUserNickname"] = chat_message.from_user_nickname
+
             response = requests.post(request_url, json=body)
             if response.status_code == 200:
                 print(response.json())
