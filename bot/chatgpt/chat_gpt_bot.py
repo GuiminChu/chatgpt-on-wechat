@@ -16,7 +16,7 @@ from common.log import logger
 from common.token_bucket import TokenBucket
 from config import conf, load_config
 from datetime import datetime
-from common.chat_prompt import art_toy
+from common import chat_prompt
 
 
 # OpenAI对话模型API (可用)
@@ -47,14 +47,16 @@ class ChatGPTBot(Bot, OpenAIImage):
 
     def reply(self, query, context=None):
         create_time = datetime.now()
+        is_add_session = True
 
         # acquire reply content
         if context.type == ContextType.TEXT:
-            receiver_name = context.kwargs.get("receiver_name", "")
-            logger.info("[CHATGPT] query={} by={}".format(query, receiver_name))
-
             session_id = context["session_id"]
+            receiver_name = context.kwargs.get("receiver_name", "")
+            logger.info(f"[CHATGPT] session_id={session_id} query={query} by={receiver_name}")
+
             reply = None
+
             clear_memory_commands = conf().get("clear_memory_commands", ["#清除记忆"])
             if query in clear_memory_commands:
                 self.sessions.clear_session(session_id)
@@ -65,10 +67,9 @@ class ChatGPTBot(Bot, OpenAIImage):
             elif query == "#更新配置":
                 load_config()
                 reply = Reply(ReplyType.INFO, "配置已更新")
+
             if reply:
                 return reply
-            session = self.sessions.session_query(query, session_id)
-            logger.debug("[CHATGPT] session query={}".format(session.messages))
 
             api_key = context.get("openai_api_key")
             model = context.get("gpt_model")
@@ -76,24 +77,39 @@ class ChatGPTBot(Bot, OpenAIImage):
             if model:
                 new_args = self.args.copy()
                 new_args["model"] = model
-            # if context.get('stream'):
-            #     # reply in stream
-            #     return self.reply_text_stream(query, new_query, session_id)
+
+            if query.startswith(chat_prompt.acrostic_poem_keywords):
+                # 创建新的session
+                session = ChatGPTSession(session_id, system_prompt=chat_prompt.acrostic_poem, model=model)
+                query = query.replace(chat_prompt.acrostic_poem_keywords, "", 1)
+                session.add_query(query)
+                is_add_session = False
+            elif query.startswith(chat_prompt.greeting_keywords):
+                # 创建新的session
+                session = ChatGPTSession(session_id, system_prompt=chat_prompt.greeting, model=model)
+                query = query.replace(chat_prompt.greeting_keywords, "", 1)
+                session.add_query(query)
+                is_add_session = False
+            else:
+                session = self.sessions.session_query(query, session_id)
+                logger.debug("[CHATGPT] session query={}".format(session.messages))
 
             reply_content = self.reply_text(session, api_key, args=new_args)
             logger.debug(
-                "[CHATGPT] new_query={}, session_id={}, reply_cont={}, completion_tokens={}".format(
+                "[CHATGPT] new_query={}, session_id={}, reply_cont={}, completion_tokens={}, model={}".format(
                     session.messages,
                     session_id,
                     reply_content["content"],
                     reply_content["completion_tokens"],
+                    reply_content["model_type"]
                 )
             )
 
             if reply_content["completion_tokens"] == 0 and len(reply_content["content"]) > 0:
                 reply = Reply(ReplyType.ERROR, reply_content["content"])
             elif reply_content["completion_tokens"] > 0:
-                self.sessions.session_reply(reply_content["content"], session_id, reply_content["total_tokens"])
+                if is_add_session:
+                    self.sessions.session_reply(reply_content["content"], session_id, reply_content["total_tokens"])
                 reply_content["create_time"] = create_time.strftime("%Y-%m-%d %H:%M:%S")
                 reply_content["complete_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 reply = Reply(ReplyType.TEXT, reply_content["content"], kwargs=reply_content)
@@ -191,9 +207,9 @@ class AzureChatGPTBot(ChatGPTBot):
 
         quality = "standard"  # Options are “hd” and “standard”; defaults to standard
 
-        if query.startswith("盲盒设计师"):
+        if query.startswith(chat_prompt.art_toy_keywords):
             quality = "hd"
-            query = art_toy + query.replace("盲盒设计师", "", 1)
+            query = chat_prompt.art_toy + query.replace(chat_prompt.art_toy_keywords, "", 1)
 
         try:
             body = {
